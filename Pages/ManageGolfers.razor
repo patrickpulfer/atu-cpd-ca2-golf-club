@@ -1,0 +1,128 @@
+﻿@page "/ManageGolfers"
+@inject Services.IGolfersService golferService
+@using Models
+
+<h3>Manage Members</h3>
+
+<div class="container">
+    <EditForm Model=@golfer OnValidSubmit="AddOrUpdateGolfer">
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="inputName" class="form-label">Name</label>
+                <input type="text" @bind-value=golfer.Name class="form-control" id="inputName" required>
+                <div class="valid-feedback">
+                    Looks good!
+                </div>
+            </div>
+            <div class="col-md-6">
+                <label for="inputEmail" class="form-label">Email</label>
+                <input type="email" @bind-value=golfer.Email class="form-control" id="inputEmail" required>
+            </div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-5">
+                <label for="inputMemberShip" class="form-label">Membership Number</label>
+                <input type="number" @bind-value=golfer.MembershipNumber class="form-control" id="inputMemberShip" required>
+            </div>
+            <div class="col-md-2">
+                <label for="inputSex" class="form-label">Sex (M or F)</label>
+                <input type="text" @bind-value=golfer.Sex class="form-control" id="inputSex" maxlength="1" required>
+            </div>
+            <div class="col-md-5">
+                <div class="col-md-6">
+                    <label for="inputHandicap" class="form-label">Handicap</label>
+                    <input type="number" @bind-value=golfer.Handicap class="form-control" id="inputHandicap" required>
+                </div>
+            </div>
+        </div>
+    <input type="submit" class="btn btn-success" value="@EditMode" />
+    </EditForm>
+</div>
+<br />
+<h3>All Members</h3>
+<div class="container">
+    <div class="col-md-12">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">MemberShip ID</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Sex</th>
+                    <th scope="col">Handicap</th>
+                    <th>Edit</th>
+                    <th>Delete</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach(var data in golfers)
+                {
+                <tr>
+                    <th>@data.Id</th>
+                    <td>@data.MembershipNumber</td>
+                    <td>@data.Name</td>
+                    <td>@data.Email</td>
+                    <th>@data.Sex</th>
+                    <td>@data.Handicap</td>
+                    <td>
+                        <button class="btn btn-warning" @onclick="@(()=> LoadToEditGolfer(data.Id))"> Edit</button>
+                    </td>
+                    <td>
+                        <button class="btn btn-danger" @onclick="@(async () => await DeleteGolfer(data.Id))">Delete</button>
+                    </td>
+                </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+@code {
+    Golfer golfer = new Golfer();
+    IEnumerable<Golfer> golfers = new List<Golfer>();
+    String EditMode = "Add New Record";
+
+    private async Task LoadData() {
+        golfers = await golferService.GetGolfersAsync();
+    }
+
+    protected override async Task OnInitializedAsync() {
+        await LoadData();
+    }
+
+    public async Task AddGolfer() {
+        await golferService.AddGolferAsync(golfer);
+        golfer = new Golfer();
+        await LoadData();
+    }
+
+    public async Task AddOrUpdateGolfer() {
+        if (EditMode == "Add New Record")
+        {
+            golfer.Sex.ToLower();
+            await golferService.AddGolferAsync(golfer);
+            golfer = new Golfer();
+            await LoadData();
+        }
+        else {
+            await golferService.UpdateGolferAsync(golfer);
+            await LoadData();
+            golfer = new Golfer();
+            EditMode = "Add New Record";
+        }
+    }
+
+    public async Task DeleteGolfer(int golferID) {
+        await golferService.DeleteGolferAsync(golferID);
+        await LoadData();
+    }
+
+    public async Task LoadToEditGolfer(int golferID){
+        var selectedGolfer = golferService.GetGolferAsync(golferID);
+        golfer = selectedGolfer.Result;
+        EditMode = "Update Record";
+    }
+}

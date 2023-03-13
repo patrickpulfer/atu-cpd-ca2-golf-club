@@ -1,0 +1,143 @@
+﻿@page "/ViewGolfers"
+@inject Services.GolferViewService golferViewService;
+@inject Services.TeeTimeBookingService teeTimeBookingService;
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+@using Models
+
+<h3>Club Members</h3>
+<br />
+<div class="container">
+    <div class="row mb-3">
+        <div class="col-md-6">
+            Filter: <select class="form-select" @onchange="(e => FilteredView(e.Value.ToString()))" aria-label="filters">
+                <option selected>None</option>
+                <option value="filterByGenderM">Male Golfers</option>
+                <option value="filterByGenderF">Female Golfers</option>
+                <option value="filterByHandicapBelow10">Handicap below 10</option>
+                <option value="filterByHandicapBetween11And20">Handicap between 11 and 20</option>
+                <option value="filterByHandicapAbove20">Handicap above 20</option>
+            </select>
+        </div>
+    </div>
+    <br />
+    <table class="table table-hover mb-3 table-striped" style="width:100%" id="golferTable" @ref="golferTableRef">
+        <thead>
+            <tr>
+                <th scope="col">#</th>
+                <th scope="col">MemberShip ID</th>
+                <th scope="col">Name</th>
+                <th scope="col">Email</th>
+                <th scope="col">Sex</th>
+                <th scope="col">Handicap</th>
+                <th scope="col">Bookings</th>
+
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var data in golfers) {
+                <tr>
+                    <th>@data.Id</th>
+                    <td>@data.MembershipNumber</td>
+                    <td>@data.Name</td>
+                    <td>@data.Email</td>
+                    <th>@data.Sex</th>
+                    <td>@data.Handicap</td>
+                    <td><button class="btn btn-success" @onclick="@(()=> GetBookingsbyPlayerID(data.Id))"> View Bookings</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    Click on Headers to sort
+</div>
+<br />
+<h3>Booked Tees</h3>
+<div class="container">
+    <div class="col-md-12 mb-3">
+        @if(bookingTableEnabled){
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Date</th>
+                    <th scope="col">Slot</th>
+                    <th scope="col">First Player</th>
+                    <th scope="col">Second Player</th>
+                    <th scope="col">Third Player</th>
+                    <th scope="col">Fourth Player</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var data in teeTimes) {
+                    <tr>
+                        <th>@data.Id</th>
+                        <td>@data.Date</td>
+                        <td>@data.Slot</td>
+                        <td>@data.PlayerOneId</td>
+                        <td>@data.PlayerTwoId</td>
+                        <th>@data.PlayerThreeId</th>
+                        <td>@data.PlayerFourId</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        }
+        @if (bookingTableNotFound) {
+            <div class="container">
+                <p>No booking found!</p>
+        </div>
+        }
+    </div>
+</div>
+
+
+@code {
+    Golfer golfer = new Golfer();
+    IEnumerable<Golfer> golfers = new List<Golfer>();
+
+    TeeTime teeTime = new TeeTime();
+    IEnumerable<TeeTime> teeTimes = new List<TeeTime>();
+
+    ElementReference golferTableRef;
+
+    bool bookingTableEnabled = false;
+    bool bookingTableNotFound = false;
+
+    protected override async Task OnInitializedAsync() {
+        await LoadData();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender) {
+        if (firstRender) {
+            await JSRuntime.InvokeVoidAsync("initTable");
+        }
+
+    }
+
+    private async Task LoadData() {
+        golfers = await golferViewService.GetAllGolfersAsync();
+    }
+
+    private async Task GetBookingsbyPlayerID(int playerID) {
+        bookingTableEnabled = false;
+        bookingTableNotFound = false;
+
+        teeTimes = await teeTimeBookingService.GetBookingsByPlayer(playerID);
+        if (!teeTimes.Any())
+        {
+            bookingTableNotFound = true;
+        }
+        else { bookingTableEnabled = true; }
+
+    }
+
+    private async Task FilteredView(string f) {
+        if (f == "filterByGenderM") { golfers = await golferViewService.FilterByGenderM(); }
+        else if (f == "filterByGenderF") { golfers = await golferViewService.FilterByGenderF(); }
+        else if (f == "filterByHandicapBelow10") { golfers = await golferViewService.FilterHandicapBelow10(); }
+        else if (f == "filterByHandicapBetween11And20") { golfers = await golferViewService.FilterHandicapBetween11and20(); }
+        else if (f == "filterByHandicapAbove20") { golfers = await golferViewService.FilterHandicapAbove20(); }
+        else { await LoadData(); }     
+        //await JSRuntime.InvokeVoidAsync("redrawTable");
+    }
+}

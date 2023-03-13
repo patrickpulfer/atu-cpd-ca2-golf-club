@@ -1,0 +1,166 @@
+﻿@page "/ManageTees"
+@inject Services.ITeeTimeService teeTimeService;
+@inject Services.GolferViewService golferViewService;
+@inject Services.TeeTimeBookingService teeTimeBookingService;
+@using Models
+
+<h3>Manage Tee Bookings</h3>
+
+<div class="container">
+    <EditForm Model=@teeTimes OnValidSubmit="AddOrUpdateTees" needs-validation>
+        <div class="row mb-3">
+            Golfer 1: <select class="form-select" @bind="teeTime.PlayerOneId" aria-label="filters" required>
+                <option selected>Please select the first Golfer</option>
+                @foreach(var data in golfers) {
+                    <option value="@data.Id">@data.Name, Member @data.MembershipNumber</option>
+                }
+            </select>
+        </div>
+        <div class="row mb-3">
+            Golfer 2: <select class="form-select" @bind="teeTime.PlayerTwoId" aria-label="filters" required>
+                <option selected>Please select the second Golfer</option>
+                @foreach (var data in golfers) {
+                    <option value="@data.Id">@data.Name, Member @data.MembershipNumber</option>
+                }
+            </select>
+        </div>
+        <div class="row mb-3">
+            Golfer 3: <select class="form-select" @bind="teeTime.PlayerThreeId" aria-label="filters" required>
+                <option selected>Please select the third Golfer</option>
+                @foreach (var data in golfers) {
+                    <option value="@data.Id">@data.Name, Member @data.MembershipNumber</option>
+                }
+            </select>
+        </div>
+        <div class="row mb-3">
+            Golfer 4: <select class="form-select" @bind="teeTime.PlayerFourId" aria-label="filters" required>
+                <option selected>Please select the fourth Golfer</option>
+                @foreach (var data in golfers) {
+                    <option value="@data.Id">@data.Name, Member @data.MembershipNumber</option>
+                }
+            </select>
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="inputDate" class="form-label">Date</label>
+                <input type="date" @bind-value=teeTime.Date @oninput="(e => GetAvailableSlotsbyDate(e.Value.ToString()))" class="form-control" id="inputDate">
+            </div>
+            <div class="col-md-6">
+                <label for="inputTime" class="form-label">Available Time Slots (unavailable are omitted)</label>
+                <select class="form-select" @bind="teeTime.Slot" aria-label="filters" id="inputTime" required>
+                    <option selected>Please select an available timeslot</option>
+                    @foreach (var data in availableTimeSlots) {
+                        <option value="@data">@data</option>
+                    }
+                </select>
+            </div>
+        </div>
+        <div class="row mb-3">
+        <input type="submit" class="btn btn-success" value="@EditMode" />
+        </div>
+    </EditForm>
+</div>
+<br />
+<h3>Booked Tees</h3>
+<div class="container">
+    <div class="col-md-12 mb-3">
+        <table class="table" id="teeTable">
+            <thead>
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Date</th>
+                    <th scope="col">Slot</th>
+                    <th scope="col">First Player</th>
+                    <th scope="col">Second Player</th>
+                    <th scope="col">Third Player</th>
+                    <th scope="col">Fourth Player</th>
+                    <th>Edit</th>
+                    <th>Delete</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var data in teeTimes) {
+                    <tr>
+                        <th>@data.Id</th>
+                        <td>@data.Date</td>
+                        <td>@data.Slot</td>
+                        <td>@data.PlayerOneId</td>
+                        <td>@data.PlayerTwoId</td>
+                        <th>@data.PlayerThreeId</th>
+                        <td>@data.PlayerFourId</td>
+                        <td>
+                            <button class="btn btn-warning" @onclick="@(()=> LoadToEditTeeTime(data.Id))"> Edit</button>
+                        </td>
+                        <td>
+                            <button class="btn btn-danger" @onclick="@(async () => await DeleteTeeTime(data.Id))">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+
+@code {
+    TeeTime teeTime = new TeeTime() { Date = DateOnly.FromDateTime(DateTime.Now) };
+    IEnumerable<TeeTime> teeTimes = new List<TeeTime>();
+
+    Golfer golfer = new Golfer();
+    IEnumerable<Golfer> golfers = new List<Golfer>();
+
+    String EditMode = "Book new Tee";
+    string[]? availableTimeSlots;
+
+
+    private async Task LoadData() {
+        teeTimes = await teeTimeService.GetTeeTimesAsync();
+        golfers = await golferViewService.GetAllGolfersAsync();
+        availableTimeSlots = await teeTimeBookingService.GetAvailableSlotsbyDate(DateOnly.FromDateTime(DateTime.Now));
+    }
+
+    protected override async Task OnInitializedAsync() {
+        await LoadData();
+    }
+
+    private async Task GetAvailableSlotsbyDate(String stringDate) {
+        DateOnly date = DateOnly.Parse(stringDate);
+        availableTimeSlots = await teeTimeBookingService.GetAvailableSlotsbyDate(date);
+    }
+
+    public async Task AddOrUpdateTees() {
+        if (EditMode == "Book new Tee") {
+            await teeTimeService.AddTeeTimeAsync(teeTime);
+            teeTime = new TeeTime();
+            await LoadData();
+        }
+        else {
+            await teeTimeService.UpdateTeeTimeAsync(teeTime);
+            await LoadData();
+            teeTime = new TeeTime();
+            EditMode = "Book new Tee";
+        }
+
+        teeTime = new TeeTime();
+        await LoadData();
+    }
+
+    public async Task AddTeeTime() {
+        await teeTimeService.AddTeeTimeAsync(teeTime);
+        teeTime = new TeeTime();
+        await LoadData();
+    }
+
+    public async Task LoadToEditTeeTime(int teeTimeID) {
+        var selectedTeeTime = teeTimeService.GetTeeTimeAsync(teeTimeID);
+        teeTime = selectedTeeTime.Result;
+        EditMode = "Update Record";
+    }
+
+    public async Task DeleteTeeTime(int teeTimeID) {
+        await teeTimeService.DeleteTeeTimeAsync(teeTimeID);
+        await LoadData();
+    }
+
+}
